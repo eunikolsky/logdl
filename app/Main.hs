@@ -6,14 +6,17 @@ import           Control.Applicative (liftA2)
 import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.Time.Calendar
 import           Data.Time.Clock
+import           Data.Time.LocalTime
 import           Network.HTTP.Client
 import           Text.HTML.TagSoup
 import           Text.StringLike (StringLike)
 
--- |Returns today's day of the month.
+-- |Returns today's day of the month in the local timezone.
 getToday :: IO Int
-getToday = extractDay . toGregorian . utctDay <$> getCurrentTime
-  where extractDay (_, _, day) = day
+getToday = extractDay . toGregorian . localDay <$> localTime
+  where
+    extractDay (_, _, day) = day
+    localTime = utcToLocalTime <$> getCurrentTimeZone <*> getCurrentTime
 
 -- |Extracts the @href@ links from the @a@ tags.
 extractLinks :: (Show a, StringLike a) => [Tag a] -> [a]
