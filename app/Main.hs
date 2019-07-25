@@ -10,13 +10,16 @@ import           Text.HTML.TagSoup
 import           Text.StringLike (StringLike)
 
 -- |Returns today's day of the month.
-today :: IO Int
-today = extractDay . toGregorian . utctDay <$> getCurrentTime
+getToday :: IO Int
+getToday = extractDay . toGregorian . utctDay <$> getCurrentTime
   where extractDay (_, _, day) = day
 
 -- |Extracts the @href@ links from the @a@ tags.
 extractLinks :: (Show a, StringLike a) => [Tag a] -> [a]
 extractLinks = fmap (fromAttrib "href") . filter (isTagOpenName "a")
+
+isDeleteLink :: L8.ByteString -> Bool
+isDeleteLink = ("!DEL!" `L8.isPrefixOf`)
 
 main :: IO ()
 main = do
@@ -26,5 +29,6 @@ main = do
   response <- httpLbs request manager
 
   let tags = parseTags $ responseBody response
+  today <- getToday
 
-  print $ extractLinks tags
+  print $ filter (not . isDeleteLink) $ extractLinks tags
