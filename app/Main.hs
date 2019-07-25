@@ -1,6 +1,7 @@
 module Main where
 
-import Network.HTTP.Client
+import qualified Data.ByteString.Lazy.Char8 as L8
+import           Network.HTTP.Client
 
 main :: IO ()
 main = do
@@ -9,4 +10,4 @@ main = do
   request <- parseRequest "http://localhost:50000/index.html"
   response <- httpLbs request manager
 
-  print $ responseBody response
+  L8.putStrLn $ responseBody response
