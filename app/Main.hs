@@ -43,7 +43,13 @@ f_and :: (a -> Bool) -> (a -> Bool) -> a -> Bool
 f_and = liftA2 (&&)
 
 downloadFile :: Manager -> L8.ByteString -> IO ()
-downloadFile _ file = putStrLn $ urlForFile $ L8.unpack file
+downloadFile manager file = do
+  let filestr = L8.unpack file
+  let url = urlForFile filestr
+  putStrLn $ "Downloading " <> url
+
+  response <- parseRequest url >>= flip httpLbs manager
+  L8.writeFile filestr $ responseBody response
 
 main :: IO ()
 main = do
