@@ -16,6 +16,9 @@ import           Text.StringLike (StringLike)
 urlForFile :: String -> String
 urlForFile = ("http://localhost:50000/" ++)
 
+logFileSuffix :: L8.ByteString
+logFileSuffix = ".txt"
+
 -- |Returns today's day of the month in the local timezone.
 getToday :: IO Int
 getToday = extractDay . toGregorian . localDay <$> localTime
@@ -30,10 +33,10 @@ extractLinks = fmap (fromAttrib "href") . filter (isTagOpenName "a")
 isDayLogsLink :: L8.ByteString -> Bool
 isDayLogsLink s =
   let (day, ext) = L8.splitAt 2 s
-  in L8.all isDigit day && ext == ".txt"
+  in L8.all isDigit day && ext == logFileSuffix
 
 isTodaysLink :: Int -> L8.ByteString -> Bool
-isTodaysLink today = (== (L8.pack . show $ today) <> ".txt")
+isTodaysLink today = (== (L8.pack . show $ today) <> logFileSuffix)
 
 -- Source: https://stackoverflow.com/questions/5710078/in-haskell-performing-and-and-or-for-boolean-functions
 f_or :: (a -> Bool) -> (a -> Bool) -> a -> Bool
