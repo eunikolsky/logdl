@@ -4,6 +4,7 @@ module Main where
 
 import           Control.Applicative (liftA2)
 import qualified Data.ByteString.Lazy.Char8 as L8
+import           Data.Char
 import           Data.Time.Calendar
 import           Data.Time.Clock
 import           Data.Time.LocalTime
@@ -22,8 +23,10 @@ getToday = extractDay . toGregorian . localDay <$> localTime
 extractLinks :: (Show a, StringLike a) => [Tag a] -> [a]
 extractLinks = fmap (fromAttrib "href") . filter (isTagOpenName "a")
 
-isDeleteLink :: L8.ByteString -> Bool
-isDeleteLink = ("!DEL!" `L8.isPrefixOf`)
+isDayLogsLink :: L8.ByteString -> Bool
+isDayLogsLink s =
+  let (day, ext) = L8.splitAt 2 s
+  in L8.all isDigit day && ext == ".txt"
 
 isTodaysLink :: Int -> L8.ByteString -> Bool
 isTodaysLink today = (== (L8.pack . show $ today) <> ".txt")
@@ -31,6 +34,9 @@ isTodaysLink today = (== (L8.pack . show $ today) <> ".txt")
 -- Source: https://stackoverflow.com/questions/5710078/in-haskell-performing-and-and-or-for-boolean-functions
 f_or :: (a -> Bool) -> (a -> Bool) -> a -> Bool
 f_or = liftA2 (||)
+
+f_and :: (a -> Bool) -> (a -> Bool) -> a -> Bool
+f_and = liftA2 (&&)
 
 main :: IO ()
 main = do
@@ -42,4 +48,4 @@ main = do
   let tags = parseTags $ responseBody response
   today <- getToday
 
-  print $ filter (not . (isDeleteLink `f_or` isTodaysLink today)) $ extractLinks tags
+  print $ filter (isDayLogsLink `f_and` (not . isTodaysLink today)) $ extractLinks tags
