@@ -4,10 +4,14 @@ module Main where
 
 import           Control.Applicative (liftA2)
 import           Control.Monad (forM_)
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.Char
+import           Data.List
+import           Data.Maybe
 import           Data.Time.Calendar
 import           Data.Time.Clock
+import           Data.Time.Format
 import           Data.Time.LocalTime
 import           Network.HTTP.Client
 import           System.Directory
@@ -59,6 +63,12 @@ downloadFile manager file = do
   else do
     response <- parseRequest url >>= flip httpLbs manager
     L8.writeFile filestr $ responseBody response
+
+    let modDateStr = fmap snd $ find ((== "Last-Modified") . fst) $ responseHeaders response
+    let parsedUTCTime = fmap B8.unpack modDateStr >>= parseTimeM False defaultTimeLocale rfc822DateFormat :: Maybe UTCTime
+    case parsedUTCTime of
+      Just parsedUTCTime -> setModificationTime filestr parsedUTCTime
+      Nothing -> putStrLn "Can't determine mod time from the response"
 
 main :: IO ()
 main = do
