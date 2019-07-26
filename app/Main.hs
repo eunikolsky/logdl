@@ -19,7 +19,7 @@ import           Text.HTML.TagSoup
 import           Text.StringLike (StringLike)
 
 urlForFile :: String -> String
-urlForFile = ("http://localhost:50000/" ++)
+urlForFile = ("http://192.168.1.181:8082/" ++)
 
 logFileSuffix :: L8.ByteString
 logFileSuffix = ".txt"
@@ -74,7 +74,7 @@ main :: IO ()
 main = do
   manager <- newManager defaultManagerSettings
 
-  request <- parseRequest $ urlForFile "index.html"
+  request <- parseRequest $ urlForFile ""
   response <- httpLbs request manager
 
   let tags = parseTags $ responseBody response
