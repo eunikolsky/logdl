@@ -10,6 +10,7 @@ import           Data.Time.Calendar
 import           Data.Time.Clock
 import           Data.Time.LocalTime
 import           Network.HTTP.Client
+import           System.Directory
 import           Text.HTML.TagSoup
 import           Text.StringLike (StringLike)
 
@@ -51,8 +52,13 @@ downloadFile manager file = do
   let url = urlForFile filestr
   putStrLn $ "Downloading " <> url
 
-  response <- parseRequest url >>= flip httpLbs manager
-  L8.writeFile filestr $ responseBody response
+  fileExists <- doesPathExist filestr
+  if fileExists
+  then
+    putStrLn $ mconcat ["File ", filestr, " already exists. Not overwriting."]
+  else do
+    response <- parseRequest url >>= flip httpLbs manager
+    L8.writeFile filestr $ responseBody response
 
 main :: IO ()
 main = do
