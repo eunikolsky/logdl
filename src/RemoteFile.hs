@@ -7,6 +7,7 @@ module RemoteFile
   ) where
 
 import           Data.Char
+import           Data.List
 import           Text.Printf (printf)
 
 type Filename = FilePath
@@ -17,6 +18,9 @@ data RemoteFile = RemoteFile
   , localName :: Filename
   }
   deriving Show
+
+setLocalName :: Filename -> RemoteFile -> RemoteFile
+setLocalName name file = file { localName = name }
 
 logFileSuffix :: String
 logFileSuffix = ".txt"
@@ -32,9 +36,21 @@ makeRemoteFile today remoteName =
       then Just $ RemoteFile { remoteName = remoteName, localName = day }
       else Nothing
   in
-    maybeDatedFile >>= ignoreToday today
+    maybeDatedFile >>= renameSpecialDates >>= ignoreToday today
 
 ignoreToday :: Int -> RemoteFile -> Maybe RemoteFile
 ignoreToday today file = if (localName file == printf "%02d" today)
   then Nothing
   else Just file
+
+-- |Leaves @[0-3]x@ names as is, renames @4x@ local names to @0x@ and drops everything else.
+renameSpecialDates :: RemoteFile -> Maybe RemoteFile
+renameSpecialDates file = fmap (flip setLocalName file) $ maybeParts >>= transform
+  where
+    maybeParts = uncons $ localName file
+
+    transform :: (Char, String) -> Maybe Filename
+    transform (first, rest)
+      | first >= '0' && first <= '3' = Just $ first : rest
+      | first == '4'                 = Just $ '0' : rest
+      | otherwise                    = Nothing
