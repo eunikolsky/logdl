@@ -8,19 +8,20 @@ module RemoteFile
 
 import           Data.Char
 import           Data.List
-import           Text.Printf (printf)
 
 type Filename = FilePath
 
--- |Represents the remote file with the name and the corresponding local name.
+-- |Represents the remote file with the name, the corresponding local name,
+-- |and its day of the month.
 data RemoteFile = RemoteFile
   { remoteName :: Filename
   , localName :: Filename
+  , realDay :: Int
   }
   deriving Show
 
-setLocalName :: Filename -> RemoteFile -> RemoteFile
-setLocalName name file = file { localName = name }
+setRealDay :: Int -> RemoteFile -> RemoteFile
+setRealDay day file = file { realDay = day }
 
 logFileSuffix :: String
 logFileSuffix = ".txt"
@@ -33,19 +34,24 @@ makeRemoteFile today remoteName =
     (day, ext) = splitAt 2 remoteName
 
     maybeDatedFile = if all isDigit day && ext == logFileSuffix
-      then Just $ RemoteFile { remoteName = remoteName, localName = day }
+      then Just $ RemoteFile
+        { remoteName = remoteName
+        , localName = day
+        , realDay = read day
+        }
       else Nothing
   in
-    maybeDatedFile >>= renameSpecialDates >>= ignoreToday today
+    maybeDatedFile >>= fixSpecialDates >>= ignoreToday today
 
 ignoreToday :: Int -> RemoteFile -> Maybe RemoteFile
-ignoreToday today file = if (localName file == printf "%02d" today)
+ignoreToday today file = if (realDay file == today)
   then Nothing
   else Just file
 
--- |Leaves @[0-3]x@ names as is, renames @4x@ local names to @0x@ and drops everything else.
-renameSpecialDates :: RemoteFile -> Maybe RemoteFile
-renameSpecialDates file = fmap (flip setLocalName file) $ maybeParts >>= transform
+-- |Updates the @RemoteFile@ by setting its @realDay@ to @0x@ for @4x@ days
+-- |and dropping @[5-9]x@ days.
+fixSpecialDates :: RemoteFile -> Maybe RemoteFile
+fixSpecialDates file = fmap (flip setRealDay file . read) $ maybeParts >>= transform
   where
     maybeParts = uncons $ localName file
 
