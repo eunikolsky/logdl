@@ -51,12 +51,10 @@ ignoreToday today file = if (realDay file == today)
 -- |Updates the @RemoteFile@ by setting its @realDay@ to @0x@ for @4x@ days
 -- |and dropping @[5-9]x@ days.
 fixSpecialDates :: RemoteFile -> Maybe RemoteFile
-fixSpecialDates file = fmap (flip setRealDay file . read) $ maybeParts >>= transform
+fixSpecialDates file = flip setRealDay file <$> transform (realDay file)
   where
-    maybeParts = uncons $ localName file
-
-    transform :: (Char, String) -> Maybe Filename
-    transform (first, rest)
-      | first >= '0' && first <= '3' = Just $ first : rest
-      | first == '4'                 = Just $ '0' : rest
-      | otherwise                    = Nothing
+    transform :: Int -> Maybe Int
+    transform day
+      | day <= 39 = Just day
+      | day <= 49 = Just $ day - 40
+      | otherwise = Nothing
