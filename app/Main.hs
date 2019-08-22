@@ -2,6 +2,7 @@
 
 module Main where
 
+import           Action
 import           RemoteFile
 
 import           Control.Monad (forM_)
@@ -14,6 +15,7 @@ import           Data.Time.Clock
 import           Data.Time.Format
 import           Data.Time.LocalTime
 import           Network.HTTP.Client
+import           Options.Applicative
 import           System.Directory
 import           Text.HTML.TagSoup
 import           Text.StringLike (StringLike)
@@ -52,8 +54,16 @@ downloadFile manager file = do
       Just parsedUTCTime -> setModificationTime localFilename parsedUTCTime
       Nothing -> putStrLn "Can't determine mod time from the response"
 
-main :: IO ()
-main = do
+deleteFile :: Manager -> RemoteFile -> IO ()
+deleteFile manager file = do
+  let url = urlForFile . ("!DEL!" ++) . remoteName $ file
+  putStrLn $ "Removing " <> remoteName file
+
+  parseRequest url >>= flip httpLbs manager
+  return ()
+
+run :: Action -> IO ()
+run action = do
   manager <- newManager defaultManagerSettings
 
   request <- parseRequest $ urlForFile ""
@@ -63,4 +73,16 @@ main = do
   today <- getToday
 
   let files = mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
-  forM_ files (downloadFile manager)
+  forM_ files (actionF manager)
+
+  where
+    actionF = case action of
+      Fetch -> downloadFile
+      Delete -> deleteFile
+
+main :: IO ()
+main = run =<< execParser opts
+  where
+    opts = info (actionP <**> helper)
+      ( fullDesc
+      <> progDesc "Downloads log files from the SavySoda iOS TextEditor" )
