@@ -21,7 +21,7 @@ import           Text.HTML.TagSoup
 import           Text.StringLike (StringLike)
 
 urlForFile :: String -> String
-urlForFile = ("http://192.168.1.181:8082/" ++)
+urlForFile = ("http://192.168.1.4:8082/" ++)
 
 -- |Returns today's day of the month in the local timezone.
 getToday :: IO Int
