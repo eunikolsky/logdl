@@ -62,8 +62,8 @@ deleteFile manager file = do
   parseRequest url >>= flip httpLbs manager
   return ()
 
-run :: Action -> IO ()
-run action = do
+run :: Config -> IO ()
+run config = do
   manager <- newManager defaultManagerSettings
 
   request <- parseRequest $ urlForFile ""
@@ -76,13 +76,13 @@ run action = do
   forM_ files (actionF manager)
 
   where
-    actionF = case action of
+    actionF = case cfgAction config of
       Fetch -> downloadFile
       Delete -> deleteFile
 
 main :: IO ()
 main = run =<< execParser opts
   where
-    opts = info (actionP <**> helper)
+    opts = info (configP <**> helper)
       ( fullDesc
       <> progDesc "Downloads log files from the SavySoda iOS TextEditor" )
