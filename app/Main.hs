@@ -20,8 +20,8 @@ import           System.Directory
 import           Text.HTML.TagSoup
 import           Text.StringLike (StringLike)
 
-urlForFile :: String -> String
-urlForFile = ("http://192.168.1.4:8082/" ++)
+urlForFile :: Config -> String -> String
+urlForFile config path = mconcat ["http://", cfgHost config, ":", show . cfgPort $ config, "/", path]
 
 -- |Returns today's day of the month in the local timezone.
 getToday :: IO Int
@@ -34,9 +34,9 @@ getToday = extractDay . toGregorian . localDay <$> localTime
 extractLinks :: (Show a, StringLike a) => [Tag a] -> [a]
 extractLinks = fmap (fromAttrib "href") . filter (isTagOpenName "a")
 
-downloadFile :: Manager -> RemoteFile -> IO ()
-downloadFile manager file = do
-  let url = urlForFile . remoteName $ file
+downloadFile :: Config -> Manager -> RemoteFile -> IO ()
+downloadFile config manager file = do
+  let url = urlForFile config . remoteName $ file
   let localFilename = localName file
   putStrLn $ "Downloading " <> url
 
@@ -54,9 +54,9 @@ downloadFile manager file = do
       Just parsedUTCTime -> setModificationTime localFilename parsedUTCTime
       Nothing -> putStrLn "Can't determine mod time from the response"
 
-deleteFile :: Manager -> RemoteFile -> IO ()
-deleteFile manager file = do
-  let url = urlForFile . ("!DEL!" ++) . remoteName $ file
+deleteFile :: Config -> Manager -> RemoteFile -> IO ()
+deleteFile config manager file = do
+  let url = urlForFile config . ("!DEL!" ++) . remoteName $ file
   putStrLn $ "Removing " <> remoteName file
 
   parseRequest url >>= flip httpLbs manager
@@ -66,14 +66,14 @@ run :: Config -> IO ()
 run config = do
   manager <- newManager defaultManagerSettings
 
-  request <- parseRequest $ urlForFile ""
+  request <- parseRequest $ urlForFile config ""
   response <- httpLbs request manager
 
   let tags = parseTags $ responseBody response
   today <- getToday
 
   let files = mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
-  forM_ files (actionF manager)
+  forM_ files (actionF config manager)
 
   where
     actionF = case cfgAction config of
