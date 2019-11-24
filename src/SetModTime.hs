@@ -47,10 +47,14 @@ wrongTimeFormatErrors = mapMaybe toError
 -- |Returns a description of grouped errors.
 describeSetModTimeErrors :: [SetModTimeResult] -> String
 describeSetModTimeErrors results = intercalate "\n" . catMaybes $
-  [ fmap (("No time header for: " <>) . intercalate ", " . NE.toList) . NE.nonEmpty . noTimeHeaderErrors $ results
-  , fmap (("Wrong time format for: " <>) . intercalate ", " . fmap formatWrongTime . NE.toList) . NE.nonEmpty . wrongTimeFormatErrors $ results
+  [ groupedDescription "No time header" id noTimeHeaderErrors
+  , groupedDescription "Wrong time format" formatWrongTime wrongTimeFormatErrors
   ]
 
   where
+    groupedDescription :: String -> (a -> String) -> ([SetModTimeResult] -> [a]) -> Maybe String
+    groupedDescription prefix process extractor =
+      fmap (((prefix <> " for: ") <>) . intercalate ", " . fmap process . NE.toList) . NE.nonEmpty . extractor $ results
+
     formatWrongTime :: (Filename, String) -> String
     formatWrongTime (f, t) = mconcat [f, " (", t, ")"]
