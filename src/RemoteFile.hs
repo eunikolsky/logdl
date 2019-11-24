@@ -1,5 +1,6 @@
 module RemoteFile
-  ( RemoteFile
+  ( Filename
+  , RemoteFile
   , localName
   , remoteName
 
