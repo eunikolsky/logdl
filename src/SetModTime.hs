@@ -6,6 +6,8 @@ module SetModTime
 
 import RemoteFile (Filename)
 
+import Data.Maybe (mapMaybe)
+
 -- |The result of setting a modification time on a @filename@.
 data SetModTimeResult = SetModTimeResult
   { filename :: Filename
@@ -22,4 +24,8 @@ data SetModTimeError
 
 -- |Extracts the filenames for which the errors were @NoTimeHeader@.
 noTimeHeaderErrors :: [SetModTimeResult] -> [Filename]
-noTimeHeaderErrors = fmap filename
+noTimeHeaderErrors = mapMaybe toError
+  where
+    toError :: SetModTimeResult -> Maybe Filename
+    toError (SetModTimeResult f (Left NoTimeHeader)) = Just f
+    toError _ = Nothing
