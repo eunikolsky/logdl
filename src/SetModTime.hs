@@ -44,9 +44,10 @@ wrongTimeFormatErrors = mapMaybe toError
     toError (SetModTimeResult f (Left (WrongTimeFormat t))) = Just (f, t)
     toError _ = Nothing
 
--- |Returns a description of grouped errors.
-describeSetModTimeErrors :: [SetModTimeResult] -> String
-describeSetModTimeErrors results = intercalate "\n" . catMaybes $
+-- |Returns a description of grouped errors. If there are no errors, returns
+-- |@Nothing@.
+describeSetModTimeErrors :: [SetModTimeResult] -> Maybe String
+describeSetModTimeErrors results = emptyToNothing . intercalate "\n" . catMaybes $
   [ groupedDescription "No time header" id noTimeHeaderErrors
   , groupedDescription "Wrong time format" formatWrongTime wrongTimeFormatErrors
   ]
@@ -58,3 +59,8 @@ describeSetModTimeErrors results = intercalate "\n" . catMaybes $
 
     formatWrongTime :: (Filename, String) -> String
     formatWrongTime (f, t) = mconcat [f, " (", t, ")"]
+
+    emptyToNothing :: [a] -> Maybe [a]
+    emptyToNothing xs
+      | null xs = Nothing
+      | otherwise = Just xs

@@ -64,7 +64,7 @@ main = hspec $ do
         , SetModTimeResult "1.txt" $ Left NoTimeHeader
         ]
       }
-      describeSetModTimeErrors input `shouldBe` "No time header for: foo, 1.txt"
+      describeSetModTimeErrors input `shouldBe` Just "No time header for: foo, 1.txt"
 
     it "lists WrongTimeFormat errors" $ do
       let { input =
@@ -72,7 +72,7 @@ main = hspec $ do
         , SetModTimeResult "0" $ Left $ WrongTimeFormat "2000,01,01"
         ]
       }
-      describeSetModTimeErrors input `shouldBe` "Wrong time format for: bar (buzzah!), 0 (2000,01,01)"
+      describeSetModTimeErrors input `shouldBe` Just "Wrong time format for: bar (buzzah!), 0 (2000,01,01)"
 
     it "lists NoTimeHeader, then WrongTimeFormat errors" $ do
       let { input =
@@ -80,7 +80,7 @@ main = hspec $ do
         , SetModTimeResult "0" $ Left NoTimeHeader
         ]
       }
-      describeSetModTimeErrors input `shouldBe` "No time header for: 0\nWrong time format for: bar (buzzah!)"
+      describeSetModTimeErrors input `shouldBe` Just "No time header for: 0\nWrong time format for: bar (buzzah!)"
 
     it "ignores successful filenames" $ do
       let { input =
@@ -88,4 +88,7 @@ main = hspec $ do
         , SetModTimeResult "0" $ Right ()
         ]
       }
-      describeSetModTimeErrors input `shouldBe` ""
+      describeSetModTimeErrors input `shouldBe` Nothing
+
+    it "returns Nothing for empty input" $ do
+      describeSetModTimeErrors [] `shouldBe` Nothing
