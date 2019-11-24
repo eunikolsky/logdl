@@ -1,4 +1,4 @@
-module Action
+module Config
   ( Action(..)
   , Config(..)
   , configP

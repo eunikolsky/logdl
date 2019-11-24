@@ -3,7 +3,7 @@
 
 module Main where
 
-import           Action
+import           Config
 import           RemoteFile
 
 import           Control.Monad (forM_)
