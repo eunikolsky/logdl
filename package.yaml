@@ -24,6 +24,7 @@ dependencies:
 - bytestring
 - directory
 - http-client
+- mtl
 - optparse-applicative
 - tagsoup
 - time
