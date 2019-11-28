@@ -5,6 +5,7 @@ module Main where
 
 import           Config
 import           RemoteFile
+import           SetModTime
 
 import           Control.Monad (forM_)
 import           Control.Monad.Reader
@@ -40,7 +41,13 @@ getToday = extractDay . toGregorian . localDay <$> localTime
 extractLinks :: (Show a, StringLike a) => [Tag a] -> [a]
 extractLinks = fmap (fromAttrib "href") . filter (isTagOpenName "a")
 
-downloadFile :: Manager -> RemoteFile -> ReaderT Config IO ()
+-- |Converts a present value into @Right@ case, otherwise @Left@ case with
+-- |the provided error.
+withError :: Maybe a -> e -> Either e a
+withError (Just x) _ = Right x
+withError Nothing e = Left e
+
+downloadFile :: Manager -> RemoteFile -> ReaderT Config IO (Maybe SetModTimeResult)
 downloadFile manager file = do
   url <- urlForFile . remoteName $ file
   let localFilename = localName file
@@ -49,21 +56,32 @@ downloadFile manager file = do
   lift $ saveFile url localFilename
 
   where
-    saveFile :: String -> FilePath -> IO ()
+    saveFile :: String -> FilePath -> IO (Maybe SetModTimeResult)
     saveFile url localFilename = do
       fileExists <- doesPathExist localFilename
       if fileExists
-      then
+      then do
         putStrLn $ mconcat ["File ", localFilename, " already exists. Not overwriting."]
+        return Nothing
       else do
         response <- parseRequest url >>= flip httpLbs manager
         L8.writeFile localFilename $ responseBody response
 
-        let modDateStr = fmap snd $ find ((== "Last-Modified") . fst) $ responseHeaders response
-        let parsedUTCTime = fmap B8.unpack modDateStr >>= parseTimeM False defaultTimeLocale rfc822DateFormat :: Maybe UTCTime
+        let { modDateStr = (fmap (B8.unpack . snd) . find ((== "Last-Modified") . fst) . responseHeaders) response
+          `withError` NoTimeHeader
+        }
+        let { parsedUTCTime = do
+          str <- modDateStr
+          (parseTimeM False defaultTimeLocale rfc822DateFormat str :: Maybe UTCTime)
+            `withError` (WrongTimeFormat str)
+        }
         case parsedUTCTime of
-          Just parsedUTCTime -> setModificationTime localFilename parsedUTCTime
-          Nothing -> putStrLn "Can't determine mod time from the response"
+          Right parsedUTCTime -> do
+            setModificationTime localFilename parsedUTCTime
+            return $ Just $ SetModTimeResult localFilename $ Right ()
+          Left error ->
+            {-putStrLn "Can't determine mod time from the response"-}
+            return $ Just $ SetModTimeResult localFilename $ Left error
 
 deleteFile :: Manager -> RemoteFile -> ReaderT Config IO ()
 deleteFile manager file = do
@@ -85,10 +103,11 @@ run = do
 
   actionF <- asks cfgAction <&> \action -> case action of
     Fetch -> downloadFile
-    Delete -> deleteFile
+    Delete -> \m f -> const Nothing <$> deleteFile m f
 
   let files = mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
-  forM_ files (actionF manager)
+  let results = fmap catMaybes . traverse (actionF manager) $ files :: ReaderT Config IO [SetModTimeResult]
+  maybe (return ()) (lift . putStrLn) =<< describeSetModTimeErrors <$> results
 
 main :: IO ()
 main = runReaderT run =<< execParser opts
