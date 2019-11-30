@@ -1,9 +1,11 @@
+module SetModTimeSpec where
+
 import SetModTime
 
 import Test.Hspec
 
-main :: IO ()
-main = hspec $ do
+spec :: Spec
+spec = do
   describe "noTimeHeaderErrors" $ do
     it "returns filenames for the NoTimeHeader error" $ do
       let { input =

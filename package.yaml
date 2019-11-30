@@ -45,7 +45,7 @@ executables:
 
 tests:
   logdl-test:
-    main:                SetModTimeSpec.hs
+    main:                Spec.hs
     source-dirs:         test
     ghc-options:
     - -threaded
@@ -54,3 +54,4 @@ tests:
     dependencies:
     - logdl
     - hspec
+    - hspec-discover
