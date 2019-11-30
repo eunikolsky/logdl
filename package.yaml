@@ -55,3 +55,4 @@ tests:
     - logdl
     - hspec
     - hspec-discover
+    - QuickCheck

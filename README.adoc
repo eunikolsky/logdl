@@ -31,6 +31,10 @@ Used libraries:
 
 * https://www.stackage.org/package/http-client[`http-client`] -- to work with HTTP;
 * https://www.stackage.org/package/optparse-applicative[`optparse-applicative`] -- parses command-line options in the applicative functor style;
-* https://www.stackage.org/package/tagsoup[`tagsoup`] -- parses any kind of HTML files into a stream of tags, it's used to parse the index page with the file list;
-* https://www.stackage.org/package/hspec[`hspec`] -- for unit testing.
-* https://www.stackage.org/package/hspec-discover[`hspec-discover`] -- to automatically discover all the unit tests.
+* https://www.stackage.org/package/tagsoup[`tagsoup`] -- parses any kind of HTML files into a stream of tags, it's used to parse the index page with the file list.
+
+For testing:
+
+* https://www.stackage.org/package/hspec[`hspec`] -- for unit testing;
+* https://www.stackage.org/package/hspec-discover[`hspec-discover`] -- to automatically discover all the unit tests;
+* https://www.stackage.org/package/QuickCheck[`QuickCheck`] -- for property testing.

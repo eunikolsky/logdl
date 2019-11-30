@@ -4,6 +4,7 @@
 module Main where
 
 import           Config
+import           PreludeExt
 import           RemoteFile
 import           SetModTime
 
@@ -40,12 +41,6 @@ getToday = extractDay . toGregorian . localDay <$> localTime
 -- |Extracts the @href@ links from the @a@ tags.
 extractLinks :: (Show a, StringLike a) => [Tag a] -> [a]
 extractLinks = fmap (fromAttrib "href") . filter (isTagOpenName "a")
-
--- |Converts a present value into @Right@ case, otherwise @Left@ case with
--- |the provided error.
-withError :: Maybe a -> e -> Either e a
-withError (Just x) _ = Right x
-withError Nothing e = Left e
 
 downloadFile :: Manager -> RemoteFile -> ReaderT Config IO (Maybe SetModTimeResult)
 downloadFile manager file = do
