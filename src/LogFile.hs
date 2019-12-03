@@ -15,5 +15,8 @@ type Parser = Parsec Void T.Text
 dayParser :: Parser Day
 dayParser = fromGregorian
   <$> (2000 <$ M.string "00")
-  <*> (read . pure <$> M.digitChar)
-  <*> (read . pure <$> M.digitChar)
+  <*> (read <$> twoDigits)
+  <*> (read <$> twoDigits)
+  where
+    twoDigits :: Parser String
+    twoDigits = (:) <$> M.digitChar <*> fmap pure M.digitChar

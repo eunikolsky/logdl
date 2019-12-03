@@ -9,6 +9,7 @@ import Data.Time.Calendar
 import Test.Hspec
 import Test.QuickCheck
 import Text.Megaparsec
+import Text.Printf
 
 spec :: Spec
 spec = do
@@ -18,5 +19,6 @@ spec = do
         let firstDay = fromGregorian 2000 01 01
         let testDay = getPositive days `addDays` firstDay
         let (_, testDayMonth, testDayDay) = toGregorian testDay
-        let dateString = mconcat ["00", T.pack $ show testDayMonth, T.pack $ show testDayDay]
+        let formatTwoDigits = T.pack . printf "%02d"
+        let dateString = mconcat ["00", formatTwoDigits testDayMonth, formatTwoDigits testDayDay]
         parseMaybe L.dayParser dateString == Just testDay
