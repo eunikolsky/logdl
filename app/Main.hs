@@ -4,6 +4,7 @@
 module Main where
 
 import           Config
+import           LogFile
 import           PreludeExt
 import           RemoteFile
 import           SetModTime
@@ -15,6 +16,8 @@ import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.Functor ((<&>))
 import           Data.List
 import           Data.Maybe
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TLE
 import           Data.Time.Calendar
 import           Data.Time.Clock
 import           Data.Time.Format
@@ -23,6 +26,7 @@ import           Network.HTTP.Client
 import           Options.Applicative
 import           System.Directory
 import           Text.HTML.TagSoup
+import           Text.Megaparsec
 import           Text.StringLike (StringLike)
 
 urlForFile :: MonadReader Config m => String -> m String
@@ -45,38 +49,36 @@ extractLinks = fmap (fromAttrib "href") . filter (isTagOpenName "a")
 downloadFile :: Manager -> RemoteFile -> ReaderT Config IO (Maybe SetModTimeResult)
 downloadFile manager file = do
   url <- urlForFile . remoteName $ file
-  let localFilename = localName file
   lift $ putStrLn $ "Downloading " <> url
 
-  lift $ saveFile url localFilename
+  lift $ saveFile url file
 
   where
-    saveFile :: String -> FilePath -> IO (Maybe SetModTimeResult)
-    saveFile url localFilename = do
-      fileExists <- doesPathExist localFilename
-      if fileExists
-      then do
-        putStrLn $ mconcat ["File ", localFilename, " already exists. Not overwriting."]
-        return Nothing
-      else do
-        response <- parseRequest url >>= flip httpLbs manager
-        L8.writeFile localFilename $ responseBody response
+    saveFile :: String -> RemoteFile -> IO (Maybe SetModTimeResult)
+    saveFile url file = do
+      response <- parseRequest url >>= flip httpLbs manager
+      let responseText = TL.toStrict . TLE.decodeUtf8 . responseBody $ response
+      localFilename <- case parse dayParser (remoteName file) responseText of
+        Right date -> return $ showGregorian date
+        Left errors -> do
+          putStr $ errorBundlePretty errors
+          return $ localName file
+      L8.writeFile localFilename $ responseBody response
 
-        let { modDateStr = (fmap (B8.unpack . snd) . find ((== "Last-Modified") . fst) . responseHeaders) response
-          `withError` NoTimeHeader
-        }
-        let { parsedUTCTime = do
-          str <- modDateStr
-          (parseTimeM False defaultTimeLocale rfc822DateFormat str :: Maybe UTCTime)
-            `withError` (WrongTimeFormat str)
-        }
-        case parsedUTCTime of
-          Right parsedUTCTime -> do
-            setModificationTime localFilename parsedUTCTime
-            return $ Just $ SetModTimeResult localFilename $ Right ()
-          Left error ->
-            {-putStrLn "Can't determine mod time from the response"-}
-            return $ Just $ SetModTimeResult localFilename $ Left error
+      let { modDateStr = (fmap (B8.unpack . snd) . find ((== "Last-Modified") . fst) . responseHeaders) response
+        `withError` NoTimeHeader
+      }
+      let { parsedUTCTime = do
+        str <- modDateStr
+        (parseTimeM False defaultTimeLocale rfc822DateFormat str :: Maybe UTCTime)
+          `withError` (WrongTimeFormat str)
+      }
+      case parsedUTCTime of
+        Right parsedUTCTime -> do
+          setModificationTime localFilename parsedUTCTime
+          return $ Just $ SetModTimeResult localFilename $ Right ()
+        Left error ->
+          return $ Just $ SetModTimeResult localFilename $ Left error
 
 deleteFile :: Manager -> RemoteFile -> ReaderT Config IO ()
 deleteFile manager file = do
