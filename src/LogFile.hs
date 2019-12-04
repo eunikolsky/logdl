@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module LogFile
   ( dayParser
   ) where
@@ -14,7 +12,7 @@ type Parser = Parsec Void T.Text
 
 dayParser :: Parser Day
 dayParser = fromGregorian
-  <$> (2000 <$ M.string "00")
+  <$> ((+ 2000) . read <$> twoDigits)
   <*> (read <$> twoDigits)
   <*> (read <$> twoDigits)
   where
