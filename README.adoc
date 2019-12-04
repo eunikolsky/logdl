@@ -6,9 +6,18 @@ A tool to download log files from the SavySoda iOS TextEditor.
 
 I write daily log files on iPhone using https://apps.apple.com/au/app/texteditor-rich-text-editor/id296222961[the SavySoda TextEditor] — it's the simplest text editor I could find, yet containing a web server to be able to share the files; and I need to download them to my computer daily. Of course, `curl` can be used to download the files, but it involves manual work like remembering which files to get, so it's better to automate the process.
 
-`logdl` is a tool written in Haskell that retrieves the index page, parses the file list, automatically determines the files to download (according to the rules that I need) and saves them locally. *It is still an alpha version and I'm continuing to improve it.*
+`logdl` is a tool written in Haskell that retrieves the index page, parses the file list, automatically determines the files to download (according to the rules that I need) and saves them locally. *It is still an alpha version and I continue to improve it.*
 
 The rules are: each log file contains a single day; the filename is the day of the month of the log file with the `.txt` suffix (because the TextEditor inserts it automatically), only these files are downloaded; today's log file is not downloaded; days 01…09 may also be stored in files with names 41…49 (a workaround for my other scripts).
+
+The log files are of the following format:
+
+* date, must be at the beginning of a file, in one of the formats:
+** `YYMMDD`, e.g. `181021` means `2018-10-21`;
+** (to be described).
+* (to be described).
+
+If the date can be parsed from a log file, it will be used as the local file name in the `YYYY-MM-DD` format.
 
 == Building
 
@@ -30,6 +39,7 @@ To run the tests, use `stack test`.
 Used libraries:
 
 * https://www.stackage.org/package/http-client[`http-client`] -- to work with HTTP;
+* https://www.stackage.org/package/megaparsec[`megaparsec`] -- to parse the log files;
 * https://www.stackage.org/package/optparse-applicative[`optparse-applicative`] -- parses command-line options in the applicative functor style;
 * https://www.stackage.org/package/tagsoup[`tagsoup`] -- parses any kind of HTML files into a stream of tags, it's used to parse the index page with the file list.
 
