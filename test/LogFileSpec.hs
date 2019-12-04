@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module LogFileSpec where
 
@@ -18,6 +17,19 @@ newtype TwoDigitYearDate = TwoDigitYearDate
   { tdyDay :: Day }
   deriving (Show)
 
+shortTwoDigitYearDateString :: TwoDigitYearDate -> T.Text
+shortTwoDigitYearDateString date = mconcat
+  [ formatTwoDigits . (`rem` 100) $ year
+  , formatTwoDigits month
+  , formatTwoDigits day
+  ]
+
+  where
+    (year, month, day) = toGregorian . tdyDay $ date
+
+    formatTwoDigits :: (Integral a, PrintfArg a) => a -> T.Text
+    formatTwoDigits = T.pack . printf "%02d"
+
 instance Arbitrary TwoDigitYearDate where
   -- | Generates a valid @TwoDigitYearDate@ in the range @[2000-01-01; 2099-12-31]@.
   arbitrary = do
@@ -27,19 +39,8 @@ instance Arbitrary TwoDigitYearDate where
     return . TwoDigitYearDate $ fromGregorian year month day
 
 spec :: Spec
-spec = do
-  describe "parse" $ do
-    it "parses short valid YYMMDD date" $ do
-      property $ \(testDay :: TwoDigitYearDate) -> do
-        let (testDayYear, testDayMonth, testDayDay) = toGregorian . tdyDay $ testDay
-        let { dateString = mconcat
-          [ formatTwoDigits . (`rem` 100) $ testDayYear
-          , formatTwoDigits testDayMonth
-          , formatTwoDigits testDayDay
-          ]
-        }
-        parseMaybe L.dayParser dateString == Just (tdyDay testDay)
-
-        where
-          formatTwoDigits :: (Integral a, PrintfArg a) => a -> T.Text
-          formatTwoDigits = T.pack . printf "%02d"
+spec =
+  describe "parse" $
+    it "parses short valid YYMMDD date" $
+      property $ \testDate ->
+        parseMaybe L.dayParser (shortTwoDigitYearDateString testDate) == Just (tdyDay testDate)
