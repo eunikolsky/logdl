@@ -14,6 +14,7 @@ The log files are of the following format:
 
 * date, must be at the beginning of a file, in one of the formats:
 ** `YYMMDD`, e.g. `181021` means `2018-10-21`;
+** `YYYY-MM-DD` (ISO 8601), e.g. `2020-10-21` means `2020-10-21`;
 ** (to be described).
 * (to be described).
 
