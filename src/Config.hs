@@ -7,7 +7,7 @@ module Config
 import           Options.Applicative
 
 data Action = Fetch | Delete
-  deriving (Show)
+  deriving (Eq, Show)
 
 data Config = Config
   { cfgHost :: String

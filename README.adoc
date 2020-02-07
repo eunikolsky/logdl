@@ -35,6 +35,17 @@ Downloading http://iphone.local.:8082/23.txt
 No time header for: 21, 22, 23
 ----
 
+There is the `--delete` option to remove the files that would otherwise be downloaded:
+
+[source,bash]
+----
+$ stack exec logdl-exe -- --host iphone.local. --port 8082 --delete
+Remove 22.txt, 23.txt? q
+Remove 22.txt, 23.txt? y
+Removing 22.txt
+Removing 23.txt
+----
+
 To run the tests, use `stack test`.
 
 Used libraries:

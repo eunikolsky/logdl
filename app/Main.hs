@@ -25,6 +25,8 @@ import           Data.Time.LocalTime
 import           Network.HTTP.Client
 import           Options.Applicative
 import           System.Directory
+import           System.Exit (exitSuccess)
+import           System.IO (hFlush, stdout)
 import           Text.HTML.TagSoup
 import           Text.Megaparsec
 import           Text.StringLike (StringLike)
@@ -98,13 +100,31 @@ run = do
   tags <- lift $ parseTags . responseBody <$> response
   today <- lift getToday
 
+  let files = mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
+
   actionF <- asks cfgAction <&> \action -> case action of
     Fetch -> downloadFile
     Delete -> \m f -> const Nothing <$> deleteFile m f
 
-  let files = mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
+  action <- asks cfgAction
+  when (action == Delete) $ liftIO $ do
+    let actionString = "Remove " ++ intercalate ", " (remoteName <$> files) ++ "? "
+    shouldDelete <- confirmDeletion actionString
+    unless shouldDelete exitSuccess
+
   let results = fmap catMaybes . traverse (actionF manager) $ files :: ReaderT Config IO [SetModTimeResult]
   maybe (return ()) (lift . putStrLn) =<< describeSetModTimeErrors <$> results
+
+-- | Prints the @string@ and waits until the user enters @y@ or @n@.
+confirmDeletion :: String -> IO Bool
+confirmDeletion string = do
+  putStr string
+  hFlush stdout
+  input <- getLine
+  case input of
+    "y" -> return True
+    "n" -> return False
+    _ -> confirmDeletion string
 
 main :: IO ()
 main = runReaderT run =<< execParser opts
