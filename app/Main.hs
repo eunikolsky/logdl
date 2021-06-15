@@ -112,8 +112,10 @@ run = do
     shouldDelete <- confirmDeletion actionString
     unless shouldDelete exitSuccess
 
-  let results = fmap catMaybes . traverse (actionF manager) $ files :: ReaderT Config IO [SetModTimeResult]
-  maybe (return ()) (lift . putStrLn) =<< describeSetModTimeErrors <$> results
+  results <- fmap catMaybes . traverse (actionF manager) $ files
+  case describeSetModTimeErrors results of
+    Just errors -> liftIO $ putStrLn errors
+    Nothing -> mzero
 
 -- | Prints the @string@ and waits until the user enters @y@ or @n@.
 confirmDeletion :: String -> IO Bool
