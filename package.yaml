@@ -30,6 +30,7 @@ dependencies:
 - tagsoup
 - text
 - time
+- transformers
 
 library:
   source-dirs: src

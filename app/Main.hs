@@ -11,10 +11,12 @@ import           SetModTime
 
 import           Control.Monad (forM_)
 import           Control.Monad.Reader
+import           Control.Monad.Trans.Maybe
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.Functor ((<&>))
 import           Data.List
+import qualified Data.List.NonEmpty as NE
 import           Data.Maybe
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TLE
@@ -91,16 +93,16 @@ deleteFile manager file = do
   return ()
 
 run :: ReaderT Config IO ()
-run = do
+run = void . runMaybeT $ do
   manager <- liftIO $ newManager defaultManagerSettings
 
   request <- parseRequest <$> urlForFile ""
   response <- liftIO $ flip httpLbs manager <$> request
 
-  tags <- lift $ parseTags . responseBody <$> response
-  today <- lift getToday
+  tags <- liftIO $ parseTags . responseBody <$> response
+  today <- liftIO getToday
 
-  let files = mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
+  files <- MaybeT . return . fmap NE.toList . NE.nonEmpty . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
 
   actionF <- asks cfgAction <&> \action -> case action of
     Fetch -> downloadFile
@@ -112,7 +114,7 @@ run = do
     shouldDelete <- confirmDeletion actionString
     unless shouldDelete exitSuccess
 
-  results <- fmap catMaybes . traverse (actionF manager) $ files
+  results <- lift . fmap catMaybes . traverse (actionF manager) $ files
   case describeSetModTimeErrors results of
     Just errors -> liftIO $ putStrLn errors
     Nothing -> mzero
