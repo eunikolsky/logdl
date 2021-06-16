@@ -16,7 +16,6 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.Functor ((<&>))
 import           Data.List
-import qualified Data.List.NonEmpty as NE
 import           Data.Maybe
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TLE
@@ -92,6 +91,12 @@ deleteFile manager file = do
   liftIO $ parseRequest url >>= flip httpLbs manager
   return ()
 
+-- |Returns the list if it's not empty and @Nothing@ otherwise.
+nonEmpty :: [a] -> Maybe [a]
+nonEmpty xs = if null xs
+  then Nothing
+  else Just xs
+
 run :: ReaderT Config IO ()
 run = void . runMaybeT $ do
   manager <- liftIO $ newManager defaultManagerSettings
@@ -102,7 +107,7 @@ run = void . runMaybeT $ do
   tags <- liftIO $ parseTags . responseBody <$> response
   today <- liftIO getToday
 
-  files <- MaybeT . return . fmap NE.toList . NE.nonEmpty . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
+  files <- MaybeT . return . nonEmpty . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
 
   actionF <- asks cfgAction <&> \action -> case action of
     Fetch -> downloadFile
