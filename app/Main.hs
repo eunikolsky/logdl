@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -27,7 +26,6 @@ import           Data.Time.LocalTime
 import           Network.HTTP.Client
 import           Options.Applicative
 import           System.Directory
-import           System.Exit (exitSuccess)
 import           System.IO (hFlush, stdout)
 import           Text.HTML.TagSoup
 import           Text.Megaparsec
@@ -110,15 +108,16 @@ run = void . runMaybeT $ do
 
   files <- MaybeT . return . nonEmpty . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
 
-  actionF <- asks cfgAction <&> \case
-    Fetch -> downloadFile
-    Delete -> \m f -> Nothing <$ deleteFile m f
-
   action <- asks cfgAction
-  when (action == Delete) $ liftIO $ do
-    let actionString = "Remove " ++ intercalate ", " (remoteName <$> files) ++ "? "
-    shouldDelete <- confirmDeletion actionString
-    unless shouldDelete exitSuccess
+  shouldDelete <- if action == Delete
+    then liftIO $
+      confirmDeletion $ mconcat ["Remove ", intercalate ", " (remoteName <$> files), "? "]
+    else pure False
+
+  let { actionF = case action of
+    Fetch -> downloadFile
+    Delete -> \m f -> Nothing <$ when shouldDelete (deleteFile m f)
+  }
 
   results <- lift . fmap catMaybes . traverse (actionF manager) $ files
   case describeSetModTimeErrors results of
