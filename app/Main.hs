@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -109,7 +110,7 @@ run = void . runMaybeT $ do
 
   files <- MaybeT . return . nonEmpty . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
 
-  actionF <- asks cfgAction <&> \action -> case action of
+  actionF <- asks cfgAction <&> \case
     Fetch -> downloadFile
     Delete -> \m f -> const Nothing <$> deleteFile m f
 
