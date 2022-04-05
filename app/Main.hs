@@ -112,7 +112,7 @@ run = void . runMaybeT $ do
 
   actionF <- asks cfgAction <&> \case
     Fetch -> downloadFile
-    Delete -> \m f -> const Nothing <$> deleteFile m f
+    Delete -> \m f -> Nothing <$ deleteFile m f
 
   action <- asks cfgAction
   when (action == Delete) $ liftIO $ do
