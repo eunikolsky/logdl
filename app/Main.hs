@@ -107,15 +107,14 @@ run = void . runMaybeT $ do
   files <- MaybeT . return . nonEmpty . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
 
   action <- asks cfgAction
-  shouldRemove <- if action == Remove
-    then liftIO $
-      confirmDeletion $ mconcat ["Remove ", intercalate ", " (remoteName <$> files), "? "]
-    else pure False
-
-  let { actionF = case action of
-    Fetch -> downloadFile
-    Remove -> \m f -> Nothing <$ when shouldRemove (deleteFile m f)
-  }
+  actionF <- case action of
+    Fetch -> pure downloadFile
+    Remove -> do
+      -- this confirmation step runs now
+      shouldRemove <- liftIO $ confirmDeletion $ mconcat ["Remove ", intercalate ", " (remoteName <$> files), "? "]
+      -- this deletion/ignoring step runs later
+      pure $ \m f ->
+        Nothing <$ when shouldRemove (deleteFile m f)
 
   results <- lift . fmap catMaybes . traverse (actionF manager) $ files
   case describeSetModTimeErrors results of
