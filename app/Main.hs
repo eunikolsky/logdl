@@ -109,14 +109,14 @@ run = void . runMaybeT $ do
   files <- MaybeT . return . nonEmpty . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
 
   action <- asks cfgAction
-  shouldDelete <- if action == Delete
+  shouldRemove <- if action == Remove
     then liftIO $
       confirmDeletion $ mconcat ["Remove ", intercalate ", " (remoteName <$> files), "? "]
     else pure False
 
   let { actionF = case action of
     Fetch -> downloadFile
-    Delete -> \m f -> Nothing <$ when shouldDelete (deleteFile m f)
+    Remove -> \m f -> Nothing <$ when shouldRemove (deleteFile m f)
   }
 
   results <- lift . fmap catMaybes . traverse (actionF manager) $ files

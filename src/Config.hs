@@ -6,7 +6,7 @@ module Config
 
 import           Options.Applicative
 
-data Action = Fetch | Delete
+data Action = Fetch | Remove
   deriving (Eq, Show)
 
 data Config = Config
@@ -26,7 +26,7 @@ configP = Config
     ( long "port"
     <> metavar "PORT"
     <> help "Web server's port")
-  <*> flag Fetch Delete
-    ( long "delete"
-    <> short 'd'
-    <> help "delete the files (fetch by default)")
+  <*> flag Fetch Remove
+    ( long "remove"
+    <> short 'r'
+    <> help "remove the files (fetch by default)")
