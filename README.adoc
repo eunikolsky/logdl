@@ -46,6 +46,10 @@ Removing 22.txt
 Removing 23.txt
 ----
 
+There are two options to wait for the server:
+* `--wait-for-appearance`/`-a` waits for the server to appear (starts responding) before doing an action;
+* `--wait-for-disappearance`/`-d` waits for the server to disappear (stops responding) after doing an action.
+
 To run the tests, use `stack test`.
 
 Used libraries:

@@ -13,6 +13,8 @@ data Config = Config
   { cfgHost :: String
   , cfgPort :: Int
   , cfgAction :: Action
+  , cfgWaitForAppearance :: Bool
+  , cfgWaitForDisappearance :: Bool
   }
   deriving (Show)
 
@@ -30,3 +32,11 @@ configP = Config
     ( long "remove"
     <> short 'r'
     <> help "remove the files (fetch by default)")
+  <*> switch
+    ( long "wait-for-appearance"
+    <> short 'a'
+    <> help "wait for the server to appear before doing an action")
+  <*> switch
+    ( long "wait-for-disappearance"
+    <> short 'd'
+    <> help "wait for the server to disappear after doing an action")

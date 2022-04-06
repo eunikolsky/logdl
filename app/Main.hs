@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -8,6 +7,7 @@ import           LogFile
 import           PreludeExt
 import           RemoteFile
 import           SetModTime
+import           Wait
 
 import           Control.Monad (forM_)
 import           Control.Monad.Reader
@@ -30,12 +30,6 @@ import           System.IO (hFlush, stdout)
 import           Text.HTML.TagSoup
 import           Text.Megaparsec
 import           Text.StringLike (StringLike)
-
-urlForFile :: MonadReader Config m => String -> m String
-urlForFile path = do
-  host <- asks cfgHost
-  port <- asks cfgPort
-  return . mconcat $ ["http://", host, ":", show port, "/", path]
 
 -- |Returns today's day of the month in the local timezone.
 getToday :: IO Int
@@ -98,7 +92,11 @@ nonEmpty xs = if null xs
 
 run :: ReaderT Config IO ()
 run = void . runMaybeT $ do
+  -- TODO put manager into the Reader?
   manager <- liftIO $ newManager defaultManagerSettings
+
+  whenM (asks cfgWaitForAppearance) $
+    lift $ waitForAppearance manager
 
   request <- parseRequest <$> urlForFile ""
   response <- liftIO $ flip httpLbs manager <$> request
@@ -122,7 +120,10 @@ run = void . runMaybeT $ do
   results <- lift . fmap catMaybes . traverse (actionF manager) $ files
   case describeSetModTimeErrors results of
     Just errors -> liftIO $ putStrLn errors
-    Nothing -> mzero
+    Nothing -> pure ()
+
+  whenM (asks cfgWaitForDisappearance) $
+    lift $ waitForDisappearance manager
 
 -- | Prints the @string@ and waits until the user enters @y@ or @n@.
 confirmDeletion :: String -> IO Bool

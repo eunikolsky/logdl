@@ -3,11 +3,28 @@ Module: PreludeExt
 Description: Useful functions extending the default @Prelude@ library.
 -}
 module PreludeExt
-  ( withError
+  ( whenM
+  , whileM
+  , withError
   ) where
+
+import Control.Monad (when)
 
 -- |Converts a present value into @Right@ case, otherwise @Left@ case with
 -- |the provided error.
 withError :: Maybe a -> e -> Either e a
 withError (Just x) _ = Right x
 withError Nothing e = Left e
+
+-- | Repeats the monadic action @m@ while it returns @True@.
+whileM :: Monad m => m Bool -> m ()
+whileM m = do
+  b <- m
+  when b $ whileM m
+
+-- | Runs action @m@ when the monadic action @cond@ returns @True@.
+-- It's a monadic version of @Control.Monad.when@.
+whenM :: Monad m => m Bool -> m () -> m ()
+whenM cond m = do
+  cond' <- cond
+  when cond' m
