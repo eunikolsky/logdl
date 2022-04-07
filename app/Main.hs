@@ -14,6 +14,7 @@ import           Control.Monad.Reader
 import           Control.Monad.Trans.Maybe
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as L8
+import           Data.Foldable (traverse_)
 import           Data.Functor ((<&>))
 import           Data.List
 import           Data.Maybe
@@ -107,19 +108,15 @@ run = void . runMaybeT $ do
   files <- MaybeT . return . nonEmpty . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
 
   action <- asks cfgAction
-  actionF <- case action of
-    Fetch -> pure downloadFile
-    Remove -> do
-      -- this confirmation step runs now
-      shouldRemove <- liftIO $ confirmDeletion $ mconcat ["Remove ", intercalate ", " (remoteName <$> files), "? "]
-      -- this deletion/ignoring step runs later
-      pure $ \m f ->
-        Nothing <$ when shouldRemove (deleteFile m f)
+  case action of
+    Fetch -> do
+      results <- lift . fmap catMaybes . traverse (downloadFile manager) $ files
+      errors <- MaybeT . pure $ describeSetModTimeErrors results
+      liftIO $ putStrLn errors
 
-  results <- lift . fmap catMaybes . traverse (actionF manager) $ files
-  case describeSetModTimeErrors results of
-    Just errors -> liftIO $ putStrLn errors
-    Nothing -> pure ()
+    Remove -> do
+      shouldRemove <- liftIO $ confirmDeletion $ mconcat ["Remove ", intercalate ", " (remoteName <$> files), "? "]
+      lift $ when shouldRemove $ traverse_ (deleteFile manager) files
 
   whenM (asks cfgWaitForDisappearance) $
     lift $ waitForDisappearance manager
