@@ -27,19 +27,26 @@ urlForFile path = do
 
 -- | Wait until the requested server starts responding to requests.
 waitForAppearance :: Manager -> ReaderT Config IO ()
-waitForAppearance = wait "Waiting for server…" id
+waitForAppearance = wait
+  "Waiting for server…"
+  (IsServerPresentModifier id)
 
 -- | Wait until the requested server stops responding to requests.
 waitForDisappearance :: Manager -> ReaderT Config IO ()
-waitForDisappearance = wait "Waiting for server to go away…" not
+waitForDisappearance = wait
+  "Waiting for server to go away…"
+  (IsServerPresentModifier not)
+
+-- | Wrapper for a function that modifies an @isServerPresent@ response.
+newtype IsServerPresentModifier = IsServerPresentModifier (Bool -> Bool)
 
 -- | Internal helper with the template for @waitForAppearance@ and
 -- @waitForDisappearance@ functions.
-wait :: String      -- ^ message to display when we're waiting for the server
-  -> (Bool -> Bool) -- ^ modifier of the @isServerPresent@ response
-  -> Manager        -- ^ HTTP manager
+wait :: String  -- ^ message to display when we're waiting for the server
+  -> IsServerPresentModifier  -- ^ modifier of the @isServerPresent@ response
+  -> Manager  -- ^ HTTP manager
   -> ReaderT Config IO ()
-wait message serverPresentMod manager = do
+wait message (IsServerPresentModifier serverPresentMod) manager = do
   url <- urlForFile ""
   request <- makeHEAD <$> parseRequest url
   liftIO . flip evalStateT True $ untilM
