@@ -30,29 +30,35 @@ waitForAppearance :: Manager -> ReaderT Config IO ()
 waitForAppearance manager = do
   url <- urlForFile ""
   request <- makeHEAD <$> parseRequest url
-  liftIO . flip evalStateT True . whileM $ do
+  liftIO . flip evalStateT True . untilM $ do
     firstFail <- get
     put False
-    liftIO $ (httpNoBody request manager $> False)
-      `catch` \(_ :: HttpException) -> do
-        when firstFail $ putStrLn "Waiting for server…"
-        threadDelay 1_000_000
-        pure True
+
+    appeared <- liftIO $ isServerPresent manager request
+    liftIO . unless appeared $ do
+      when firstFail $ putStrLn "Waiting for server…"
+      threadDelay 1_000_000
+    pure appeared
 
 -- | Wait until the requested server stops responding to requests.
 waitForDisappearance :: Manager -> ReaderT Config IO ()
 waitForDisappearance manager = do
   url <- urlForFile ""
   request <- makeHEAD <$> parseRequest url
-  liftIO . flip evalStateT True . whileM $ do
+  liftIO . flip evalStateT True . untilM $ do
     firstFail <- get
     put False
-    liftIO $ do
-        httpNoBody request manager
+
+    disappeared <- liftIO . fmap not $ isServerPresent manager request
+    liftIO . unless disappeared $ do
         when firstFail $ putStrLn "Waiting for server to go away…"
         threadDelay 1_000_000
-        pure True
-      `catch` \(_ :: HttpException) -> pure False
+    pure disappeared
+
+isServerPresent :: Manager -> Request -> IO Bool
+isServerPresent manager request =
+  (httpNoBody request manager $> True)
+    `catch` \(_ :: HttpException) -> pure False
 
 makeHEAD :: Request -> Request
 makeHEAD req = req { method = "HEAD" }
