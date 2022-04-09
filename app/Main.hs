@@ -92,12 +92,11 @@ nonEmpty xs = if null xs
   else Just xs
 
 run :: ReaderT Config IO ()
-run = void . runMaybeT $ do
+run = do
   -- TODO put manager into the Reader?
   manager <- liftIO $ newManager defaultManagerSettings
 
-  whenM (asks cfgWaitForAppearance) $
-    lift $ waitForAppearance manager
+  whenM (asks cfgWaitForAppearance) $ waitForAppearance manager
 
   request <- parseRequest <$> urlForFile ""
   response <- liftIO $ flip httpLbs manager <$> request
@@ -105,21 +104,22 @@ run = void . runMaybeT $ do
   tags <- liftIO $ parseTags . responseBody <$> response
   today <- liftIO getToday
 
-  files <- MaybeT . return . nonEmpty . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
+  files <- pure . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
 
   action <- asks cfgAction
-  case action of
+  runMaybeT $ case action of
     Fetch -> do
       results <- lift . fmap catMaybes . traverse (downloadFile manager) $ files
       errors <- MaybeT . pure $ describeSetModTimeErrors results
       liftIO $ putStrLn errors
 
     Remove -> do
-      shouldRemove <- liftIO $ confirmDeletion $ mconcat ["Remove ", intercalate ", " (remoteName <$> files), "? "]
-      lift $ when shouldRemove $ traverse_ (deleteFile manager) files
+      nonEmptyFiles <- MaybeT . pure $ nonEmpty files
+      shouldRemove <- liftIO $ confirmDeletion $
+        mconcat ["Remove ", intercalate ", " (remoteName <$> nonEmptyFiles), "? "]
+      lift $ when shouldRemove $ traverse_ (deleteFile manager) nonEmptyFiles
 
-  whenM (asks cfgWaitForDisappearance) $
-    lift $ waitForDisappearance manager
+  whenM (asks cfgWaitForDisappearance) $ waitForDisappearance manager
 
 -- | Prints the @string@ and waits until the user enters @y@ or @n@.
 confirmDeletion :: String -> IO Bool
