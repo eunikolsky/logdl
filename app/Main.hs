@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -8,12 +7,14 @@ import           LogFile
 import           PreludeExt
 import           RemoteFile
 import           SetModTime
+import           Wait
 
 import           Control.Monad (forM_)
 import           Control.Monad.Reader
 import           Control.Monad.Trans.Maybe
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as L8
+import           Data.Foldable (traverse_)
 import           Data.Functor ((<&>))
 import           Data.List
 import           Data.Maybe
@@ -26,17 +27,10 @@ import           Data.Time.LocalTime
 import           Network.HTTP.Client
 import           Options.Applicative
 import           System.Directory
-import           System.Exit (exitSuccess)
 import           System.IO (hFlush, stdout)
 import           Text.HTML.TagSoup
 import           Text.Megaparsec
 import           Text.StringLike (StringLike)
-
-urlForFile :: MonadReader Config m => String -> m String
-urlForFile path = do
-  host <- asks cfgHost
-  port <- asks cfgPort
-  return . mconcat $ ["http://", host, ":", show port, "/", path]
 
 -- |Returns today's day of the month in the local timezone.
 getToday :: IO Int
@@ -98,8 +92,11 @@ nonEmpty xs = if null xs
   else Just xs
 
 run :: ReaderT Config IO ()
-run = void . runMaybeT $ do
+run = do
+  -- TODO put manager into the Reader?
   manager <- liftIO $ newManager defaultManagerSettings
+
+  whenM (asks cfgWaitForAppearance) $ waitForAppearance manager
 
   request <- parseRequest <$> urlForFile ""
   response <- liftIO $ flip httpLbs manager <$> request
@@ -107,22 +104,22 @@ run = void . runMaybeT $ do
   tags <- liftIO $ parseTags . responseBody <$> response
   today <- liftIO getToday
 
-  files <- MaybeT . return . nonEmpty . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
-
-  actionF <- asks cfgAction <&> \action -> case action of
-    Fetch -> downloadFile
-    Delete -> \m f -> const Nothing <$> deleteFile m f
+  files <- pure . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
 
   action <- asks cfgAction
-  when (action == Delete) $ liftIO $ do
-    let actionString = "Remove " ++ intercalate ", " (remoteName <$> files) ++ "? "
-    shouldDelete <- confirmDeletion actionString
-    unless shouldDelete exitSuccess
+  runMaybeT $ case action of
+    Fetch -> do
+      results <- lift . fmap catMaybes . traverse (downloadFile manager) $ files
+      errors <- MaybeT . pure $ describeSetModTimeErrors results
+      liftIO $ putStrLn errors
 
-  results <- lift . fmap catMaybes . traverse (actionF manager) $ files
-  case describeSetModTimeErrors results of
-    Just errors -> liftIO $ putStrLn errors
-    Nothing -> mzero
+    Remove -> do
+      nonEmptyFiles <- MaybeT . pure $ nonEmpty files
+      shouldRemove <- liftIO $ confirmDeletion $
+        mconcat ["Remove ", intercalate ", " (remoteName <$> nonEmptyFiles), "? "]
+      lift $ when shouldRemove $ traverse_ (deleteFile manager) nonEmptyFiles
+
+  whenM (asks cfgWaitForDisappearance) $ waitForDisappearance manager
 
 -- | Prints the @string@ and waits until the user enters @y@ or @n@.
 confirmDeletion :: String -> IO Bool

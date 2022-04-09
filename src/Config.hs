@@ -6,13 +6,15 @@ module Config
 
 import           Options.Applicative
 
-data Action = Fetch | Delete
+data Action = Fetch | Remove
   deriving (Eq, Show)
 
 data Config = Config
   { cfgHost :: String
   , cfgPort :: Int
   , cfgAction :: Action
+  , cfgWaitForAppearance :: Bool
+  , cfgWaitForDisappearance :: Bool
   }
   deriving (Show)
 
@@ -26,7 +28,15 @@ configP = Config
     ( long "port"
     <> metavar "PORT"
     <> help "Web server's port")
-  <*> flag Fetch Delete
-    ( long "delete"
+  <*> flag Fetch Remove
+    ( long "remove"
+    <> short 'r'
+    <> help "remove the files (fetch by default)")
+  <*> switch
+    ( long "wait-for-appearance"
+    <> short 'a'
+    <> help "wait for the server to appear before doing an action")
+  <*> switch
+    ( long "wait-for-disappearance"
     <> short 'd'
-    <> help "delete the files (fetch by default)")
+    <> help "wait for the server to disappear after doing an action")
