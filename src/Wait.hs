@@ -30,30 +30,38 @@ waitForAppearance :: Manager -> ReaderT Config IO ()
 waitForAppearance manager = do
   url <- urlForFile ""
   request <- makeHEAD <$> parseRequest url
-  liftIO . flip evalStateT True . untilM $ do
-    firstFail <- get
-    put False
+  liftIO . flip evalStateT True $ untilM
+    post
+    (liftIO $ isServerPresent manager request)
 
-    appeared <- liftIO $ isServerPresent manager request
-    liftIO . unless appeared $ do
-      when firstFail $ putStrLn "Waiting for server…"
-      threadDelay 1_000_000
-    pure appeared
+  where
+    post :: StateT Bool IO ()
+    post = do
+      firstFail <- get
+      put False
+
+      liftIO $ do
+        when firstFail $ putStrLn "Waiting for server…"
+        threadDelay 1_000_000
 
 -- | Wait until the requested server stops responding to requests.
 waitForDisappearance :: Manager -> ReaderT Config IO ()
 waitForDisappearance manager = do
   url <- urlForFile ""
   request <- makeHEAD <$> parseRequest url
-  liftIO . flip evalStateT True . untilM $ do
-    firstFail <- get
-    put False
+  liftIO . flip evalStateT True $ untilM
+    post
+    (liftIO . fmap not $ isServerPresent manager request)
 
-    disappeared <- liftIO . fmap not $ isServerPresent manager request
-    liftIO . unless disappeared $ do
+  where
+    post :: StateT Bool IO ()
+    post = do
+      firstFail <- get
+      put False
+
+      liftIO $ do
         when firstFail $ putStrLn "Waiting for server to go away…"
         threadDelay 1_000_000
-    pure disappeared
 
 isServerPresent :: Manager -> Request -> IO Bool
 isServerPresent manager request =
