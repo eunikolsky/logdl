@@ -7,7 +7,9 @@ RUN pacman -Sy --noconfirm sudo fakeroot binutils
 
 WORKDIR /build
 
-COPY PKGBUILD .stack-work/install/x86_64-linux-*/*/*/bin/logdl-exe .
+ARG logdl_path=.stack-work/install/x86_64-linux-*/*/*/bin
+
+COPY PKGBUILD ${logdl_path}/logdl-exe ./
 
 RUN useradd builduser \
     && passwd -d builduser \
