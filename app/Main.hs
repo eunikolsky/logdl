@@ -41,7 +41,7 @@ getToday = extractDay . toGregorian . localDay <$> localTime
 extractLinks :: (Show a, StringLike a) => [Tag a] -> [a]
 extractLinks = fmap (fromAttrib "href") . filter (isTagOpenName "a")
 
-downloadFile :: Manager -> RemoteFile -> ReaderT Config IO (Maybe SetModTimeResult)
+downloadFile :: Manager -> RemoteFile -> ReaderT Config IO SetModTimeResult
 downloadFile manager file = do
   url <- urlForFile . remoteName $ file
   lift $ putStrLn $ "Downloading " <> url
@@ -49,7 +49,7 @@ downloadFile manager file = do
   lift $ saveFile url
 
   where
-    saveFile :: String -> IO (Maybe SetModTimeResult)
+    saveFile :: String -> IO SetModTimeResult
     saveFile url = do
       response <- parseRequest url >>= flip httpLbs manager
       let responseText = TL.toStrict . TLE.decodeUtf8 . responseBody $ response
@@ -71,9 +71,9 @@ downloadFile manager file = do
       case parsedUTCTime of
         Right parsedUTCTime' -> do
           setModificationTime localFilename parsedUTCTime'
-          return $ Just $ SetModTimeResult localFilename $ Right ()
+          return $ SetModTimeResult localFilename $ Right ()
         Left err ->
-          return $ Just $ SetModTimeResult localFilename $ Left err
+          return $ SetModTimeResult localFilename $ Left err
 
 deleteFile :: Manager -> RemoteFile -> ReaderT Config IO ()
 deleteFile manager file = do
@@ -107,7 +107,7 @@ run = do
   action' <- asks cfgAction
   void . runMaybeT $ case action' of
     Fetch -> do
-      results <- lift . fmap catMaybes . traverse (downloadFile manager) $ files
+      results <- lift . traverse (downloadFile manager) $ files
       errors <- MaybeT . pure $ describeSetModTimeErrors results
       liftIO $ putStrLn errors
 
