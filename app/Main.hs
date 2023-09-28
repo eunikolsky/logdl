@@ -46,9 +46,9 @@ deleteFilePrefix = "!DEL!"
 downloadFile :: Manager -> RemoteFile -> ReaderT Config IO ()
 downloadFile manager file = do
   url <- urlForFile . remoteName $ file
-  lift $ putStrLn $ "Downloading " <> url
-
-  lift $ saveFile url
+  lift $ do
+    putStrLn $ "Downloading " <> url
+    saveFile url
 
   where
     saveFile :: String -> IO ()
@@ -65,10 +65,9 @@ downloadFile manager file = do
 deleteFile :: Manager -> RemoteFile -> ReaderT Config IO ()
 deleteFile manager file = do
   url <- urlForFile . (deleteFilePrefix ++) . remoteName $ file
-  liftIO $ putStrLn $ "Removing " <> remoteName file
-
-  void . liftIO $ parseRequest url >>= flip httpLbs manager
-  return ()
+  void . liftIO $ do
+    putStrLn $ "Removing " <> remoteName file
+    parseRequest url >>= flip httpLbs manager
 
 -- |Returns the list if it's not empty and @Nothing@ otherwise.
 nonEmpty :: [a] -> Maybe [a]
