@@ -9,13 +9,11 @@ import           RemoteFile
 import           SetModTime
 import           Wait
 
-import           Control.Monad (forM_)
 import           Control.Monad.Reader
 import           Control.Monad.Trans.Maybe
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.Foldable (traverse_)
-import           Data.Functor ((<&>))
 import           Data.List
 import           Data.Maybe
 import qualified Data.Text.Lazy as TL

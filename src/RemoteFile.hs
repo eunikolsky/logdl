@@ -8,7 +8,6 @@ module RemoteFile
   ) where
 
 import           Data.Char
-import           Data.List
 
 type Filename = FilePath
 

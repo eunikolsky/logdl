@@ -8,7 +8,7 @@ module SetModTime
 
 import RemoteFile (Filename)
 
-import Data.List (intercalate, intersperse)
+import Data.List (intercalate)
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe (catMaybes, mapMaybe)
 
