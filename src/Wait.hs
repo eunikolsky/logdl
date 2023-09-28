@@ -20,10 +20,10 @@ import           Data.Functor (($>))
 import           Network.HTTP.Client
 
 urlForFile :: MonadReader Config m => String -> m String
-urlForFile path = do
-  host <- asks cfgHost
-  port <- asks cfgPort
-  return . mconcat $ ["http://", host, ":", show port, "/", path]
+urlForFile fPath = do
+  fHost <- asks cfgHost
+  fPort <- asks cfgPort
+  return . mconcat $ ["http://", fHost, ":", show fPort, "/", fPath]
 
 -- | Wait until the requested server starts responding to requests.
 waitForAppearance :: Manager -> ReaderT Config IO ()

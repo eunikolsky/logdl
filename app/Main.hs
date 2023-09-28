@@ -46,11 +46,11 @@ downloadFile manager file = do
   url <- urlForFile . remoteName $ file
   lift $ putStrLn $ "Downloading " <> url
 
-  lift $ saveFile url file
+  lift $ saveFile url
 
   where
-    saveFile :: String -> RemoteFile -> IO (Maybe SetModTimeResult)
-    saveFile url file = do
+    saveFile :: String -> IO (Maybe SetModTimeResult)
+    saveFile url = do
       response <- parseRequest url >>= flip httpLbs manager
       let responseText = TL.toStrict . TLE.decodeUtf8 . responseBody $ response
       localFilename <- case parse dayParser (remoteName file) responseText of
@@ -64,16 +64,16 @@ downloadFile manager file = do
         `withError` NoTimeHeader
       }
       let { parsedUTCTime = do
-        str <- modDateStr
-        (parseTimeM False defaultTimeLocale rfc822DateFormat str :: Maybe UTCTime)
-          `withError` (WrongTimeFormat str)
+        dateStr <- modDateStr
+        (parseTimeM False defaultTimeLocale rfc822DateFormat dateStr :: Maybe UTCTime)
+          `withError` (WrongTimeFormat dateStr)
       }
       case parsedUTCTime of
-        Right parsedUTCTime -> do
-          setModificationTime localFilename parsedUTCTime
+        Right parsedUTCTime' -> do
+          setModificationTime localFilename parsedUTCTime'
           return $ Just $ SetModTimeResult localFilename $ Right ()
-        Left error ->
-          return $ Just $ SetModTimeResult localFilename $ Left error
+        Left err ->
+          return $ Just $ SetModTimeResult localFilename $ Left err
 
 deleteFile :: Manager -> RemoteFile -> ReaderT Config IO ()
 deleteFile manager file = do
@@ -104,8 +104,8 @@ run = do
 
   files <- pure . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
 
-  action <- asks cfgAction
-  void . runMaybeT $ case action of
+  action' <- asks cfgAction
+  void . runMaybeT $ case action' of
     Fetch -> do
       results <- lift . fmap catMaybes . traverse (downloadFile manager) $ files
       errors <- MaybeT . pure $ describeSetModTimeErrors results
