@@ -80,7 +80,7 @@ deleteFile manager file = do
   url <- urlForFile . ("!DEL!" ++) . remoteName $ file
   liftIO $ putStrLn $ "Removing " <> remoteName file
 
-  liftIO $ parseRequest url >>= flip httpLbs manager
+  void . liftIO $ parseRequest url >>= flip httpLbs manager
   return ()
 
 -- |Returns the list if it's not empty and @Nothing@ otherwise.
@@ -105,7 +105,7 @@ run = do
   files <- pure . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
 
   action <- asks cfgAction
-  runMaybeT $ case action of
+  void . runMaybeT $ case action of
     Fetch -> do
       results <- lift . fmap catMaybes . traverse (downloadFile manager) $ files
       errors <- MaybeT . pure $ describeSetModTimeErrors results
