@@ -37,6 +37,12 @@ getToday = extractDay . toGregorian . localDay <$> localTime
 extractLinks :: (Show a, StringLike a) => [Tag a] -> [a]
 extractLinks = fmap (fromAttrib "href") . filter (isTagOpenName "a")
 
+isDeleteLink :: Filename -> Bool
+isDeleteLink = (deleteFilePrefix `isPrefixOf`)
+
+deleteFilePrefix :: String
+deleteFilePrefix = "!DEL!"
+
 downloadFile :: Manager -> RemoteFile -> ReaderT Config IO ()
 downloadFile manager file = do
   url <- urlForFile . remoteName $ file
@@ -58,7 +64,7 @@ downloadFile manager file = do
 
 deleteFile :: Manager -> RemoteFile -> ReaderT Config IO ()
 deleteFile manager file = do
-  url <- urlForFile . ("!DEL!" ++) . remoteName $ file
+  url <- urlForFile . (deleteFilePrefix ++) . remoteName $ file
   liftIO $ putStrLn $ "Removing " <> remoteName file
 
   void . liftIO $ parseRequest url >>= flip httpLbs manager
@@ -83,7 +89,13 @@ run = do
   tags <- liftIO $ parseTags . responseBody <$> response
   today <- liftIO getToday
 
-  let files = mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
+  let files
+        = mapMaybe (makeRemoteFile today)
+        -- TODO this should be built-in to a `listFiles` operation
+        . filter (not . isDeleteLink)
+        . map L8.unpack
+        . extractLinks
+        $ tags
 
   action' <- asks cfgAction
   void . runMaybeT $ case action' of
