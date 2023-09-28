@@ -83,7 +83,7 @@ run = do
   tags <- liftIO $ parseTags . responseBody <$> response
   today <- liftIO getToday
 
-  files <- pure . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
+  let files = mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
 
   action' <- asks cfgAction
   void . runMaybeT $ case action' of
