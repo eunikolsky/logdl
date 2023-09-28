@@ -8,7 +8,6 @@ module RemoteFile
   ) where
 
 import           Data.Char
-import           Data.List
 
 type Filename = FilePath
 
@@ -30,13 +29,13 @@ logFileSuffix = ".txt"
 -- |Creates a @RemoteFile@ from the remote file name if it matches the day pattern
 -- |and not today's day.
 makeRemoteFile :: Int -> Filename -> Maybe RemoteFile
-makeRemoteFile today remoteName =
+makeRemoteFile today remoteName' =
   let
-    (day, ext) = splitAt 2 remoteName
+    (day, ext) = splitAt 2 remoteName'
 
     maybeDatedFile = if all isDigit day && ext == logFileSuffix
       then Just $ RemoteFile
-        { remoteName = remoteName
+        { remoteName = remoteName'
         , localName = day
         , realDay = read day
         }

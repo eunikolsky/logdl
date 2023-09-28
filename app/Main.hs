@@ -6,27 +6,21 @@ import           Config
 import           LogFile
 import           PreludeExt
 import           RemoteFile
-import           SetModTime
 import           Wait
 
-import           Control.Monad (forM_)
 import           Control.Monad.Reader
 import           Control.Monad.Trans.Maybe
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.Foldable (traverse_)
-import           Data.Functor ((<&>))
 import           Data.List
 import           Data.Maybe
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TLE
 import           Data.Time.Calendar
 import           Data.Time.Clock
-import           Data.Time.Format
 import           Data.Time.LocalTime
 import           Network.HTTP.Client
 import           Options.Applicative
-import           System.Directory
 import           System.IO (hFlush, stdout)
 import           Text.HTML.TagSoup
 import           Text.Megaparsec
@@ -43,16 +37,16 @@ getToday = extractDay . toGregorian . localDay <$> localTime
 extractLinks :: (Show a, StringLike a) => [Tag a] -> [a]
 extractLinks = fmap (fromAttrib "href") . filter (isTagOpenName "a")
 
-downloadFile :: Manager -> RemoteFile -> ReaderT Config IO (Maybe SetModTimeResult)
+downloadFile :: Manager -> RemoteFile -> ReaderT Config IO ()
 downloadFile manager file = do
   url <- urlForFile . remoteName $ file
   lift $ putStrLn $ "Downloading " <> url
 
-  lift $ saveFile url file
+  lift $ saveFile url
 
   where
-    saveFile :: String -> RemoteFile -> IO (Maybe SetModTimeResult)
-    saveFile url file = do
+    saveFile :: String -> IO ()
+    saveFile url = do
       response <- parseRequest url >>= flip httpLbs manager
       let responseText = TL.toStrict . TLE.decodeUtf8 . responseBody $ response
       localFilename <- case parse dayParser (remoteName file) responseText of
@@ -62,27 +56,12 @@ downloadFile manager file = do
           return $ localName file
       L8.writeFile localFilename $ responseBody response
 
-      let { modDateStr = (fmap (B8.unpack . snd) . find ((== "Last-Modified") . fst) . responseHeaders) response
-        `withError` NoTimeHeader
-      }
-      let { parsedUTCTime = do
-        str <- modDateStr
-        (parseTimeM False defaultTimeLocale rfc822DateFormat str :: Maybe UTCTime)
-          `withError` (WrongTimeFormat str)
-      }
-      case parsedUTCTime of
-        Right parsedUTCTime -> do
-          setModificationTime localFilename parsedUTCTime
-          return $ Just $ SetModTimeResult localFilename $ Right ()
-        Left error ->
-          return $ Just $ SetModTimeResult localFilename $ Left error
-
 deleteFile :: Manager -> RemoteFile -> ReaderT Config IO ()
 deleteFile manager file = do
   url <- urlForFile . ("!DEL!" ++) . remoteName $ file
   liftIO $ putStrLn $ "Removing " <> remoteName file
 
-  liftIO $ parseRequest url >>= flip httpLbs manager
+  void . liftIO $ parseRequest url >>= flip httpLbs manager
   return ()
 
 -- |Returns the list if it's not empty and @Nothing@ otherwise.
@@ -106,12 +85,10 @@ run = do
 
   files <- pure . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
 
-  action <- asks cfgAction
-  runMaybeT $ case action of
+  action' <- asks cfgAction
+  void . runMaybeT $ case action' of
     Fetch -> do
-      results <- lift . fmap catMaybes . traverse (downloadFile manager) $ files
-      errors <- MaybeT . pure $ describeSetModTimeErrors results
-      liftIO $ putStrLn errors
+      lift . traverse_ (downloadFile manager) $ files
 
     Remove -> do
       nonEmptyFiles <- MaybeT . pure $ nonEmpty files
