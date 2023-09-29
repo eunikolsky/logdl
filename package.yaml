@@ -23,9 +23,6 @@ ghc-options:
 - -Wall
 - -Werror=missing-methods
 
-default-extensions:
-- ScopedTypeVariables
-
 dependencies:
 - base >= 4.7 && < 5
 - bytestring
