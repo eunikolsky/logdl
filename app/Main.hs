@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, GADTs #-}
 
 module Main where
 
@@ -70,6 +70,11 @@ nonEmpty xs = if null xs
   then Nothing
   else Just xs
 
+--data AnyDownloadable a = Downloadable a => AnyDownloadable a
+
+--foo :: [AnyDownloadable a]
+--foo = [AnyDownloadable $ makeRemoteAnyFile ""]
+
 run :: ReaderT Config IO ()
 run = do
   -- TODO put manager into the Reader?
@@ -83,8 +88,13 @@ run = do
   tags <- liftIO $ parseTags . responseBody <$> response
   today <- liftIO getToday
 
-  let files
-        = mapMaybe (makeRemoteFile today)
+  allFiles <- asks cfgAllFiles
+  --let createRemoteFiles :: (Downloadable a => Filename -> [a]) = case allFiles of
+        --False -> mapMaybe (makeRemoteFile today)
+        --True -> map makeRemoteAnyFile
+
+  let files -- :: (Downloadable a => [a])
+        = mapMaybe (makeRemoteFile today) -- createRemoteFiles
         -- TODO this should be built-in to a `listFiles` operation
         . filter (not . isDeleteLink)
         . map L8.unpack

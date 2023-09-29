@@ -4,6 +4,9 @@ module RemoteFile
   , localName
   , remoteName
 
+  , RemoteAnyFile
+  , makeRemoteAnyFile
+
   , makeRemoteFile
   ) where
 
@@ -15,6 +18,15 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TLE
 import           Data.Time.Calendar
 import           Text.Megaparsec
+
+newtype RemoteAnyFile = RemoteAnyFile { unRemoteAnyFile :: Filename }
+
+instance Downloadable RemoteAnyFile where
+  getRemoteName = unRemoteAnyFile
+  getLocalFilename af _ = (unRemoteAnyFile af, Nothing)
+
+makeRemoteAnyFile :: Filename -> RemoteAnyFile
+makeRemoteAnyFile = RemoteAnyFile
 
 -- |Represents the remote file with the name, the corresponding local name,
 -- |and its day of the month.
