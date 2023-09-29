@@ -52,7 +52,7 @@ downloadFile manager file = do
     saveFile url = do
       response <- parseRequest url >>= flip httpLbs manager
       let (localFilename, maybeErrors) = getLocalFilename file (responseBody response)
-      maybe mzero putStr maybeErrors
+      maybe mempty putStr maybeErrors
       L8.writeFile localFilename $ responseBody response
 
 deleteFile :: Manager -> RemoteFile -> ReaderT Config IO ()
