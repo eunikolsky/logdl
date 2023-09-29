@@ -7,18 +7,33 @@ module RemoteFile
   , makeRemoteFile
   ) where
 
-import           Data.Char
+import           Downloadable
+import           LogFile
 
-type Filename = FilePath
+import           Data.Char
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TLE
+import           Data.Time.Calendar
+import           Text.Megaparsec
 
 -- |Represents the remote file with the name, the corresponding local name,
 -- |and its day of the month.
 data RemoteFile = RemoteFile
   { remoteName :: Filename
+  -- ^ original filename on the server, e.g. `41.txt`
   , localName :: Filename
+  -- ^ filename without the extension, e.g. `41`
   , realDay :: Int
   }
   deriving Show
+
+instance Downloadable RemoteFile where
+  getRemoteName = remoteName
+  getLocalFilename file body =
+    let responseText = TL.toStrict . TLE.decodeUtf8 $ body
+    in case parse dayParser (remoteName file) responseText of
+        Right date -> (showGregorian date, Nothing)
+        Left errors -> (localName file, Just $ errorBundlePretty errors)
 
 setRealDay :: Int -> RemoteFile -> RemoteFile
 setRealDay day file = file { realDay = day }

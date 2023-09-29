@@ -3,7 +3,7 @@
 module Main where
 
 import           Config
-import           LogFile
+import           Downloadable
 import           PreludeExt
 import           RemoteFile
 import           Wait
@@ -14,8 +14,6 @@ import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.Foldable (traverse_)
 import           Data.List
 import           Data.Maybe
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.Encoding as TLE
 import           Data.Time.Calendar
 import           Data.Time.Clock
 import           Data.Time.LocalTime
@@ -23,7 +21,6 @@ import           Network.HTTP.Client
 import           Options.Applicative
 import           System.IO (hFlush, stdout)
 import           Text.HTML.TagSoup
-import           Text.Megaparsec
 import           Text.StringLike (StringLike)
 
 -- |Returns today's day of the month in the local timezone.
@@ -43,9 +40,10 @@ isDeleteLink = (deleteFilePrefix `isPrefixOf`)
 deleteFilePrefix :: String
 deleteFilePrefix = "!DEL!"
 
-downloadFile :: Manager -> RemoteFile -> ReaderT Config IO ()
+downloadFile :: Downloadable a => Manager -> a -> ReaderT Config IO ()
 downloadFile manager file = do
-  url <- urlForFile . remoteName $ file
+  let name = getRemoteName file
+  url <- urlForFile name
   lift $ do
     putStrLn $ "Downloading " <> url
     saveFile url
@@ -54,19 +52,16 @@ downloadFile manager file = do
     saveFile :: String -> IO ()
     saveFile url = do
       response <- parseRequest url >>= flip httpLbs manager
-      let responseText = TL.toStrict . TLE.decodeUtf8 . responseBody $ response
-      localFilename <- case parse dayParser (remoteName file) responseText of
-        Right date -> return $ showGregorian date
-        Left errors -> do
-          putStr $ errorBundlePretty errors
-          return $ localName file
+      let (localFilename, maybeErrors) = getLocalFilename file (responseBody response)
+      maybe mzero putStr maybeErrors
       L8.writeFile localFilename $ responseBody response
 
-deleteFile :: Manager -> RemoteFile -> ReaderT Config IO ()
+deleteFile :: Downloadable a => Manager -> a -> ReaderT Config IO ()
 deleteFile manager file = do
-  url <- urlForFile . (deleteFilePrefix ++) . remoteName $ file
+  let name = getRemoteName file
+  url <- urlForFile . (deleteFilePrefix ++) $ name
   void . liftIO $ do
-    putStrLn $ "Removing " <> remoteName file
+    putStrLn $ "Removing " <> name
     parseRequest url >>= flip httpLbs manager
 
 -- |Returns the list if it's not empty and @Nothing@ otherwise.
