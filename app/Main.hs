@@ -3,7 +3,6 @@
 module Main where
 
 import           Config
-import           Downloadable
 import           PreludeExt
 import           RemoteFile
 import           Wait
@@ -40,7 +39,7 @@ isDeleteLink = (deleteFilePrefix `isPrefixOf`)
 deleteFilePrefix :: String
 deleteFilePrefix = "!DEL!"
 
-downloadFile :: Downloadable a => Manager -> a -> ReaderT Config IO ()
+downloadFile :: Manager -> RemoteFile -> ReaderT Config IO ()
 downloadFile manager file = do
   let name = getRemoteName file
   url <- urlForFile name
@@ -56,7 +55,7 @@ downloadFile manager file = do
       maybe mzero putStr maybeErrors
       L8.writeFile localFilename $ responseBody response
 
-deleteFile :: Downloadable a => Manager -> a -> ReaderT Config IO ()
+deleteFile :: Manager -> RemoteFile -> ReaderT Config IO ()
 deleteFile manager file = do
   let name = getRemoteName file
   url <- urlForFile . (deleteFilePrefix ++) $ name
@@ -83,8 +82,13 @@ run = do
   tags <- liftIO $ parseTags . responseBody <$> response
   today <- liftIO getToday
 
+  allFiles <- asks cfgAllFiles
+  let createRemoteFiles = case allFiles of
+        False -> mapMaybe (makeRemoteFileLog today)
+        True -> fmap makeRemoteFileAny
+
   let files
-        = mapMaybe (makeRemoteFile today)
+        = createRemoteFiles
         -- TODO this should be built-in to a `listFiles` operation
         . filter (not . isDeleteLink)
         . map L8.unpack
@@ -99,7 +103,7 @@ run = do
     Remove -> do
       nonEmptyFiles <- MaybeT . pure $ nonEmpty files
       shouldRemove <- liftIO $ confirmDeletion $
-        mconcat ["Remove ", intercalate ", " (remoteName <$> nonEmptyFiles), "? "]
+        mconcat ["Remove ", intercalate ", " (getRemoteName <$> nonEmptyFiles), "? "]
       lift $ when shouldRemove $ traverse_ (deleteFile manager) nonEmptyFiles
 
   whenM (asks cfgWaitForDisappearance) $ waitForDisappearance manager
