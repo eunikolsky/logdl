@@ -13,6 +13,7 @@ data Config = Config
   { cfgHost :: String
   , cfgPort :: Int
   , cfgAction :: Action
+  , cfgAllFiles :: Bool
   , cfgWaitForAppearance :: Bool
   , cfgWaitForDisappearance :: Bool
   }
@@ -32,6 +33,9 @@ configP = Config
     ( long "remove"
     <> short 'r'
     <> help "remove the files (fetch by default)")
+  <*> switch
+    ( long "all"
+    <> help "process all available files")
   <*> switch
     ( long "wait-for-appearance"
     <> short 'a'

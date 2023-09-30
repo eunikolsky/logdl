@@ -3,7 +3,6 @@
 module Main where
 
 import           Config
-import           LogFile
 import           PreludeExt
 import           RemoteFile
 import           Wait
@@ -14,8 +13,6 @@ import qualified Data.ByteString.Lazy.Char8 as L8
 import           Data.Foldable (traverse_)
 import           Data.List
 import           Data.Maybe
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.Encoding as TLE
 import           Data.Time.Calendar
 import           Data.Time.Clock
 import           Data.Time.LocalTime
@@ -23,7 +20,6 @@ import           Network.HTTP.Client
 import           Options.Applicative
 import           System.IO (hFlush, stdout)
 import           Text.HTML.TagSoup
-import           Text.Megaparsec
 import           Text.StringLike (StringLike)
 
 -- |Returns today's day of the month in the local timezone.
@@ -37,32 +33,35 @@ getToday = extractDay . toGregorian . localDay <$> localTime
 extractLinks :: (Show a, StringLike a) => [Tag a] -> [a]
 extractLinks = fmap (fromAttrib "href") . filter (isTagOpenName "a")
 
+isDeleteLink :: Filename -> Bool
+isDeleteLink = (deleteFilePrefix `isPrefixOf`)
+
+deleteFilePrefix :: String
+deleteFilePrefix = "!DEL!"
+
 downloadFile :: Manager -> RemoteFile -> ReaderT Config IO ()
 downloadFile manager file = do
-  url <- urlForFile . remoteName $ file
-  lift $ putStrLn $ "Downloading " <> url
-
-  lift $ saveFile url
+  let name = getRemoteName file
+  url <- urlForFile name
+  lift $ do
+    putStrLn $ "Downloading " <> url
+    saveFile url
 
   where
     saveFile :: String -> IO ()
     saveFile url = do
       response <- parseRequest url >>= flip httpLbs manager
-      let responseText = TL.toStrict . TLE.decodeUtf8 . responseBody $ response
-      localFilename <- case parse dayParser (remoteName file) responseText of
-        Right date -> return $ showGregorian date
-        Left errors -> do
-          putStr $ errorBundlePretty errors
-          return $ localName file
+      let (localFilename, maybeErrors) = getLocalFilename file (responseBody response)
+      maybe mempty putStr maybeErrors
       L8.writeFile localFilename $ responseBody response
 
 deleteFile :: Manager -> RemoteFile -> ReaderT Config IO ()
 deleteFile manager file = do
-  url <- urlForFile . ("!DEL!" ++) . remoteName $ file
-  liftIO $ putStrLn $ "Removing " <> remoteName file
-
-  void . liftIO $ parseRequest url >>= flip httpLbs manager
-  return ()
+  let name = getRemoteName file
+  url <- urlForFile . (deleteFilePrefix ++) $ name
+  void . liftIO $ do
+    putStrLn $ "Removing " <> name
+    parseRequest url >>= flip httpLbs manager
 
 -- |Returns the list if it's not empty and @Nothing@ otherwise.
 nonEmpty :: [a] -> Maybe [a]
@@ -83,7 +82,18 @@ run = do
   tags <- liftIO $ parseTags . responseBody <$> response
   today <- liftIO getToday
 
-  files <- pure . mapMaybe (makeRemoteFile today . L8.unpack) $ extractLinks tags
+  allFiles <- asks cfgAllFiles
+  let createRemoteFiles = case allFiles of
+        False -> mapMaybe (makeRemoteFileLog today)
+        True -> fmap makeRemoteFileAny
+
+  let files
+        = createRemoteFiles
+        -- TODO this should be built-in to a `listFiles` operation
+        . filter (not . isDeleteLink)
+        . map L8.unpack
+        . extractLinks
+        $ tags
 
   action' <- asks cfgAction
   void . runMaybeT $ case action' of
@@ -93,7 +103,7 @@ run = do
     Remove -> do
       nonEmptyFiles <- MaybeT . pure $ nonEmpty files
       shouldRemove <- liftIO $ confirmDeletion $
-        mconcat ["Remove ", intercalate ", " (remoteName <$> nonEmptyFiles), "? "]
+        mconcat ["Remove ", intercalate ", " (getRemoteName <$> nonEmptyFiles), "? "]
       lift $ when shouldRemove $ traverse_ (deleteFile manager) nonEmptyFiles
 
   whenM (asks cfgWaitForDisappearance) $ waitForDisappearance manager
