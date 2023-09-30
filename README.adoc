@@ -34,6 +34,8 @@ Downloading http://iphone.local.:8082/22.txt
 Downloading http://iphone.local.:8082/23.txt
 ----
 
+Alternatively, the `--all` option can be used to download all available files.
+
 There is the `--remove` option to remove the files that would otherwise be downloaded:
 
 [source,bash]
