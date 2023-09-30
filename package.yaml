@@ -1,10 +1,10 @@
 name:                logdl
-version:             0.3.0.0
+version:             0.4.0
 github:              "githubuser/logdl"
 license:             BSD3
 author:              "Author name here"
 maintainer:          "example@example.com"
-copyright:           "2019 Author name here"
+copyright:           "2023 Author name here"
 
 extra-source-files:
 - README.adoc
