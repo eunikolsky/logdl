@@ -1,6 +1,6 @@
 # Maintainer: Eugene Nikolsky <e@egeek.me>
 pkgname=logdl
-pkgver=0.3.0.0
+pkgver=0.4.0
 pkgrel=1
 epoch=
 pkgdesc="Downloads log files from the SavySoda iOS TextEditor"
